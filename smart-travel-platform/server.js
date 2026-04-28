@@ -6,6 +6,15 @@ const dotenv = require('dotenv');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const mongoose = require('mongoose');
+
+// Load models
+const User = require('./models/User');
+const Package = require('./models/Package');
+const Booking = require('./models/Booking');
+const ConsultationRequest = require('./models/ConsultationRequest');
+const EmailVerification = require('./models/EmailVerification');
+const SavedRecommendation = require('./models/SavedRecommendation');
 
 dotenv.config();
 
@@ -13,33 +22,37 @@ const app = express();
 
 // ===== MIDDLEWARE =====
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'],
+  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 
+// ===== MONGODB CONNECTION =====
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('✅ MongoDB Connected Successfully');
+  } catch (error) {
+    console.error('❌ MongoDB Connection Error:', error.message);
+    process.exit(1);
+  }
+};
+
 // ===== HELPER FUNCTIONS =====
 
-// ✅ Normalize date to YYYY-MM-DD without timezone issues
 function normalizeDate(dateString) {
   if (!dateString) return null;
-  
-  // If it's already a Date object
   if (dateString instanceof Date) {
     const year = dateString.getFullYear();
     const month = String(dateString.getMonth() + 1).padStart(2, '0');
     const day = String(dateString.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
-  
-  // If it's string in YYYY-MM-DD format
   if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
     return dateString;
   }
-  
-  // Try to parse any other format
   const date = new Date(dateString);
   if (!isNaN(date.getTime())) {
     const year = date.getFullYear();
@@ -47,11 +60,9 @@ function normalizeDate(dateString) {
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
-  
   return null;
 }
 
-// ✅ Password validation
 function validatePassword(password) {
   const errors = [];
   if (password.length < 6) errors.push('at least 6 characters');
@@ -66,16 +77,17 @@ function validatePassword(password) {
   };
 }
 
-// Get available slots with normalized dates
-function getAvailableSlots(date) {
+async function getAvailableSlots(date) {
   const allSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
   const normalizedDate = normalizeDate(date);
   
-  const bookedSlots = database.bookings
-    .filter(b => normalizeDate(b.meetingDate) === normalizedDate && b.status !== 'cancelled')
-    .map(b => b.meetingTime);
+  const bookedSlots = await Booking.find({
+    meetingDate: normalizedDate,
+    status: { $ne: 'cancelled' }
+  }).select('meetingTime');
   
-  return allSlots.filter(slot => !bookedSlots.includes(slot));
+  const bookedTimes = bookedSlots.map(b => b.meetingTime);
+  return allSlots.filter(slot => !bookedTimes.includes(slot));
 }
 
 // ===== EMAIL SETUP =====
@@ -92,49 +104,6 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'sureen130@gmail.com';
 // ===== GEMINI SETUP =====
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-
-// ===== DATABASE SETUP =====
-const database = {
-  users: [],
-  consultationRequests: [],
-  travelPackages: [],
-  bookings: [],
-  emailVerifications: [],
-  savedRecommendations: []
-};
-
-// ===== SEED TRAVEL PACKAGES =====
-const seedTravelPackages = () => {
-  const packages = [
-    { id: 1, name: "Paris Romantic Escape", country: "France", city: "Paris", price: 1800, duration: 5, type: "relaxation", season: "spring,summer", highlights: ["Eiffel Tower", "Louvre Museum", "Seine River Cruise"] },
-    { id: 2, name: "Budget Barcelona Beach", country: "Spain", city: "Barcelona", price: 850, duration: 4, type: "relaxation", season: "summer", highlights: ["La Sagrada Familia", "Beach time", "Tapas bars"] },
-    { id: 3, name: "Swiss Alps Adventure", country: "Switzerland", city: "Interlaken", price: 2200, duration: 6, type: "adventure", season: "winter,summer", highlights: ["Hiking", "Mountain biking", "Paragliding"] },
-    { id: 4, name: "Tokyo Shopping Paradise", country: "Japan", city: "Tokyo", price: 1600, duration: 5, type: "shopping", season: "spring,autumn", highlights: ["Shibuya shopping", "Ginza district", "Akihabara"] },
-    { id: 5, name: "Family Disney Florida", country: "USA", city: "Orlando", price: 2500, duration: 7, type: "family", season: "winter,spring", highlights: ["Disney World", "Universal Studios", "Water parks"] },
-    { id: 6, name: "Budget Thailand Adventure", country: "Thailand", city: "Bangkok", price: 700, duration: 8, type: "adventure", season: "winter", highlights: ["Tuk-tuk rides", "Street markets", "Temple tours"] },
-    { id: 7, name: "Luxury Dubai Escape", country: "UAE", city: "Dubai", price: 3500, duration: 5, type: "luxury", season: "winter,spring", highlights: ["Burj Khalifa", "Desert safari", "Luxury spa"] },
-    { id: 8, name: "Greek Islands Relaxation", country: "Greece", city: "Santorini", price: 1500, duration: 5, type: "relaxation", season: "summer", highlights: ["Sunset viewing", "Blue domed churches", "Wine tasting"] },
-    { id: 9, name: "New York City Explorer", country: "USA", city: "New York", price: 1200, duration: 4, type: "shopping", season: "autumn,spring", highlights: ["Times Square", "Broadway shows", "Fifth Avenue"] },
-    { id: 10, name: "Costa Rica Adventure", country: "Costa Rica", city: "San José", price: 1100, duration: 6, type: "adventure", season: "winter,spring", highlights: ["Rainforest hiking", "Zip-lining", "Wildlife spotting"] }
-  ];
-  
-  for (let i = 11; i <= 50; i++) {
-    packages.push({
-      id: i,
-      name: `Travel Package ${i}`,
-      country: i % 2 === 0 ? "Italy" : "Spain",
-      city: i % 2 === 0 ? "Rome" : "Madrid",
-      price: 500 + (i * 15),
-      duration: 5 + (i % 5),
-      type: i % 3 === 0 ? "relaxation" : i % 3 === 1 ? "adventure" : "luxury",
-      season: "spring,summer",
-      highlights: ["Beautiful scenery", "Local cuisine", "Cultural experiences"]
-    });
-  }
-  
-  database.travelPackages = packages;
-  console.log(`✅ Seeded ${database.travelPackages.length} packages`);
-};
 
 // ===== AUTH HELPERS =====
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
@@ -197,7 +166,7 @@ async function sendAdminNotification(bookingDetails) {
         <p><strong>📧 Email:</strong> ${bookingDetails.email}</p>
         <p><strong>📞 Phone:</strong> ${bookingDetails.phone}</p>
         <p><strong>✈️ Package:</strong> ${bookingDetails.packageName || 'Custom Package'}</p>
-        <p><strong>💰 Price:</strong> $${bookingDetails.packagePrice || bookingDetails.customPackage?.estimatedPrice || 'TBD'}</p>
+        <p><strong>💰 Price:</strong> $${bookingDetails.packagePrice || 'TBD'}</p>
         <p><strong>👥 Travelers:</strong> ${bookingDetails.travelers || 1}</p>
         <p><strong>📅 Meeting Date:</strong> ${bookingDetails.meetingDate}</p>
         <p><strong>⏰ Meeting Time:</strong> ${bookingDetails.meetingTime}</p>
@@ -268,6 +237,45 @@ async function generateStructuredRecommendation(preferences) {
   return result.response.text();
 }
 
+// ===== SEED TRAVEL PACKAGES =====
+const seedTravelPackages = async () => {
+  const count = await Package.countDocuments();
+  if (count > 0) {
+    console.log(`📦 Packages already exist (${count} packages)`);
+    return;
+  }
+  
+  const packages = [
+    { id: 1, name: "Paris Romantic Escape", country: "France", city: "Paris", price: 1800, duration: 5, type: "relaxation", season: "spring,summer", highlights: ["Eiffel Tower", "Louvre Museum", "Seine River Cruise"] },
+    { id: 2, name: "Budget Barcelona Beach", country: "Spain", city: "Barcelona", price: 850, duration: 4, type: "relaxation", season: "summer", highlights: ["La Sagrada Familia", "Beach time", "Tapas bars"] },
+    { id: 3, name: "Swiss Alps Adventure", country: "Switzerland", city: "Interlaken", price: 2200, duration: 6, type: "adventure", season: "winter,summer", highlights: ["Hiking", "Mountain biking", "Paragliding"] },
+    { id: 4, name: "Tokyo Shopping Paradise", country: "Japan", city: "Tokyo", price: 1600, duration: 5, type: "shopping", season: "spring,autumn", highlights: ["Shibuya shopping", "Ginza district", "Akihabara"] },
+    { id: 5, name: "Family Disney Florida", country: "USA", city: "Orlando", price: 2500, duration: 7, type: "family", season: "winter,spring", highlights: ["Disney World", "Universal Studios", "Water parks"] },
+    { id: 6, name: "Budget Thailand Adventure", country: "Thailand", city: "Bangkok", price: 700, duration: 8, type: "adventure", season: "winter", highlights: ["Tuk-tuk rides", "Street markets", "Temple tours"] },
+    { id: 7, name: "Luxury Dubai Escape", country: "UAE", city: "Dubai", price: 3500, duration: 5, type: "luxury", season: "winter,spring", highlights: ["Burj Khalifa", "Desert safari", "Luxury spa"] },
+    { id: 8, name: "Greek Islands Relaxation", country: "Greece", city: "Santorini", price: 1500, duration: 5, type: "relaxation", season: "summer", highlights: ["Sunset viewing", "Blue domed churches", "Wine tasting"] },
+    { id: 9, name: "New York City Explorer", country: "USA", city: "New York", price: 1200, duration: 4, type: "shopping", season: "autumn,spring", highlights: ["Times Square", "Broadway shows", "Fifth Avenue"] },
+    { id: 10, name: "Costa Rica Adventure", country: "Costa Rica", city: "San José", price: 1100, duration: 6, type: "adventure", season: "winter,spring", highlights: ["Rainforest hiking", "Zip-lining", "Wildlife spotting"] }
+  ];
+  
+  for (let i = 11; i <= 50; i++) {
+    packages.push({
+      id: i,
+      name: `Travel Package ${i}`,
+      country: i % 2 === 0 ? "Italy" : "Spain",
+      city: i % 2 === 0 ? "Rome" : "Madrid",
+      price: 500 + (i * 15),
+      duration: 5 + (i % 5),
+      type: i % 3 === 0 ? "relaxation" : i % 3 === 1 ? "adventure" : "luxury",
+      season: "spring,summer",
+      highlights: ["Beautiful scenery", "Local cuisine", "Cultural experiences"]
+    });
+  }
+  
+  await Package.insertMany(packages);
+  console.log(`✅ Seeded ${packages.length} packages to MongoDB`);
+};
+
 // ===== API ENDPOINTS =====
 
 // Auth endpoints
@@ -275,18 +283,15 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
     
-    // Validation
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'All fields are required' });
     }
     
-    // Email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ error: 'Please enter a valid email address' });
     }
     
-    // Password validation
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
       return res.status(400).json({ 
@@ -294,30 +299,29 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
     
-    // Check if user exists
-    if (database.users.find(u => u.email === email)) {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
       return res.status(400).json({ error: 'Email already registered. Please login instead.' });
     }
     
     const hashedPassword = await hashPassword(password);
-    const newUser = { 
-      id: Date.now().toString(), 
-      name, 
-      email, 
-      password: hashedPassword, 
-      saved_requests: [],
-      isVerified: false,
-      bookings: []
-    };
+    const newUser = new User({
+      id: Date.now().toString(),
+      name,
+      email,
+      password: hashedPassword,
+      isVerified: false
+    });
     
-    database.users.push(newUser);
+    await newUser.save();
     
     const verificationCode = generateVerificationCode();
-    database.emailVerifications.push({
+    const emailVerification = new EmailVerification({
       userId: newUser.id,
       code: verificationCode,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000)
     });
+    await emailVerification.save();
     
     await sendVerificationEmail(email, verificationCode, name);
     
@@ -340,7 +344,7 @@ app.post('/api/auth/verify-email', async (req, res) => {
       return res.status(400).json({ error: 'Please enter a valid 6-digit verification code' });
     }
     
-    const verification = database.emailVerifications.find(v => v.code === code);
+    const verification = await EmailVerification.findOne({ code });
     if (!verification) {
       return res.status(400).json({ error: 'Invalid verification code. Please check and try again.' });
     }
@@ -349,13 +353,14 @@ app.post('/api/auth/verify-email', async (req, res) => {
       return res.status(400).json({ error: 'Verification code has expired. Please request a new one.' });
     }
     
-    const user = database.users.find(u => u.id === verification.userId);
+    const user = await User.findOne({ id: verification.userId });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
     
     user.isVerified = true;
-    database.emailVerifications = database.emailVerifications.filter(v => v.code !== code);
+    await user.save();
+    await EmailVerification.deleteOne({ code });
     
     const jwtToken = generateToken(user.id);
     
@@ -372,19 +377,20 @@ app.post('/api/auth/verify-email', async (req, res) => {
 app.post('/api/auth/resend-code', async (req, res) => {
   try {
     const { email } = req.body;
-    const user = database.users.find(u => u.email === email);
+    const user = await User.findOne({ email });
     
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.isVerified) return res.status(400).json({ error: 'Email already verified' });
     
-    database.emailVerifications = database.emailVerifications.filter(v => v.userId !== user.id);
+    await EmailVerification.deleteMany({ userId: user.id });
     
     const newCode = generateVerificationCode();
-    database.emailVerifications.push({
+    const emailVerification = new EmailVerification({
       userId: user.id,
       code: newCode,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000)
     });
+    await emailVerification.save();
     
     await sendVerificationEmail(email, newCode, user.name);
     res.json({ message: 'New verification code sent to your email' });
@@ -401,7 +407,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
     
-    const user = database.users.find(u => u.email === email);
+    const user = await User.findOne({ email });
     
     if (!user) {
       return res.status(401).json({ error: 'Email not found. Please register first.' });
@@ -426,41 +432,47 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.get('/api/auth/me', authenticateToken, (req, res) => {
-  const user = database.users.find(u => u.id === req.userId);
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+  const user = await User.findOne({ id: req.userId });
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json({ user: { id: user.id, name: user.name, email: user.email } });
 });
 
 // Packages endpoints
-app.get('/api/packages', (req, res) => {
-  res.json({ packages: database.travelPackages, count: database.travelPackages.length });
+app.get('/api/packages', async (req, res) => {
+  const packages = await Package.find().sort({ id: 1 });
+  res.json({ packages, count: packages.length });
 });
 
 // Consultation endpoints
-app.post('/api/consultation/match', (req, res) => {
+app.post('/api/consultation/match', async (req, res) => {
   try {
     const { budget, travelType, duration } = req.body;
-    let matches = database.travelPackages.filter(pkg => {
-      if (pkg.price > parseInt(budget) * 1.1) return false;
-      if (pkg.type !== travelType) return false;
-      return true;
+    const packages = await Package.find({
+      price: { $lte: parseInt(budget) * 1.1 },
+      type: travelType
     });
-    const recommended = matches[0] || database.travelPackages[0];
-    res.json({ recommended_package: recommended, reason: `Perfect match based on your preferences!`, alternatives: matches.slice(1, 3), confidence_score: 95 });
+    
+    const recommended = packages[0] || await Package.findOne();
+    res.json({ recommended_package: recommended, reason: `Perfect match based on your preferences!`, alternatives: packages.slice(1, 3), confidence_score: 95 });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/consultation/save', authenticateToken, (req, res) => {
-  const consultation = { id: Date.now().toString(), userId: req.userId, ...req.body, timestamp: new Date().toISOString() };
-  database.consultationRequests.push(consultation);
+app.post('/api/consultation/save', authenticateToken, async (req, res) => {
+  const consultation = new ConsultationRequest({
+    id: Date.now().toString(),
+    userId: req.userId,
+    ...req.body,
+    timestamp: new Date().toISOString()
+  });
+  await consultation.save();
   res.status(201).json({ message: 'Saved successfully', request: consultation });
 });
 
-app.get('/api/user/requests', authenticateToken, (req, res) => {
-  const requests = database.consultationRequests.filter(r => r.userId === req.userId);
+app.get('/api/user/requests', authenticateToken, async (req, res) => {
+  const requests = await ConsultationRequest.find({ userId: req.userId });
   res.json({ requests });
 });
 
@@ -492,16 +504,15 @@ app.post('/api/ai/save-recommendation', authenticateToken, async (req, res) => {
   try {
     const { packageId, recommendationData } = req.body;
     
-    const savedRecommendation = {
+    const savedRecommendation = new SavedRecommendation({
       id: 'REC' + Date.now(),
       userId: req.userId,
       packageId,
       recommendationData,
       savedAt: new Date().toISOString()
-    };
+    });
     
-    if (!database.savedRecommendations) database.savedRecommendations = [];
-    database.savedRecommendations.push(savedRecommendation);
+    await savedRecommendation.save();
     
     res.json({ success: true, message: 'Recommendation saved!', saved: savedRecommendation });
   } catch (error) {
@@ -509,35 +520,34 @@ app.post('/api/ai/save-recommendation', authenticateToken, async (req, res) => {
   }
 });
 
-app.get('/api/ai/saved-recommendations', authenticateToken, (req, res) => {
-  const saved = database.savedRecommendations?.filter(r => r.userId === req.userId) || [];
+app.get('/api/ai/saved-recommendations', authenticateToken, async (req, res) => {
+  const saved = await SavedRecommendation.find({ userId: req.userId });
   res.json({ recommendations: saved });
 });
 
-// ===== BOOKING ENDPOINTS (FIXED WITH NORMALIZED DATES) =====
+// ===== BOOKING ENDPOINTS =====
 
 app.post('/api/bookings/create', authenticateToken, async (req, res) => {
   try {
     const { meetingDate, meetingTime, packageName, packagePrice, travelers, specialRequests } = req.body;
-    const user = database.users.find(u => u.id === req.userId);
+    const user = await User.findOne({ id: req.userId });
     
     const normalizedDate = normalizeDate(meetingDate);
     
-    // Check if slot is already booked
-    const existingBooking = database.bookings.find(b => 
-      normalizeDate(b.meetingDate) === normalizedDate && 
-      b.meetingTime === meetingTime && 
-      b.status !== 'cancelled'
-    );
+    const existingBooking = await Booking.findOne({
+      meetingDate: normalizedDate,
+      meetingTime: meetingTime,
+      status: { $ne: 'cancelled' }
+    });
     
     if (existingBooking) {
       return res.status(409).json({ 
         error: 'This time slot is already booked. Please select another time.',
-        availableSlots: getAvailableSlots(normalizedDate)
+        availableSlots: await getAvailableSlots(normalizedDate)
       });
     }
     
-    const newBooking = {
+    const newBooking = new Booking({
       id: 'BK' + Date.now(),
       userId: req.userId,
       travelerName: user.name,
@@ -551,12 +561,10 @@ app.post('/api/bookings/create', authenticateToken, async (req, res) => {
       travelers: travelers || 1,
       specialRequests: specialRequests || '',
       status: 'pending',
-      createdAt: new Date().toISOString(),
       source: 'packages_page'
-    };
+    });
     
-    database.bookings.push(newBooking);
-    
+    await newBooking.save();
     await sendAdminNotification(newBooking);
     
     res.status(201).json({ success: true, message: 'Booking request sent successfully! We will contact you within 24 hours.', booking: newBooking });
@@ -569,25 +577,24 @@ app.post('/api/bookings/create', authenticateToken, async (req, res) => {
 app.post('/api/bookings/direct', authenticateToken, async (req, res) => {
   try {
     const { message, meetingDate, meetingTime, packageId, packageName, packagePrice, travelers } = req.body;
-    const user = database.users.find(u => u.id === req.userId);
+    const user = await User.findOne({ id: req.userId });
     
     const normalizedDate = normalizeDate(meetingDate);
     
-    // Check if slot is available
-    const existingBooking = database.bookings.find(b => 
-      normalizeDate(b.meetingDate) === normalizedDate && 
-      b.meetingTime === meetingTime && 
-      b.status !== 'cancelled'
-    );
+    const existingBooking = await Booking.findOne({
+      meetingDate: normalizedDate,
+      meetingTime: meetingTime,
+      status: { $ne: 'cancelled' }
+    });
     
     if (existingBooking) {
       return res.status(409).json({ 
         error: 'This time slot is already booked. Please select another time.',
-        availableSlots: getAvailableSlots(normalizedDate)
+        availableSlots: await getAvailableSlots(normalizedDate)
       });
     }
     
-    const newBooking = {
+    const newBooking = new Booking({
       id: 'DIR' + Date.now(),
       userId: req.userId,
       travelerName: user.name,
@@ -602,12 +609,10 @@ app.post('/api/bookings/direct', authenticateToken, async (req, res) => {
       userRequest: message,
       specialRequests: message,
       status: 'pending',
-      createdAt: new Date().toISOString(),
       source: 'packages_page'
-    };
+    });
     
-    database.bookings.push(newBooking);
-    
+    await newBooking.save();
     await sendAdminNotification(newBooking);
     
     res.status(201).json({
@@ -620,8 +625,7 @@ app.post('/api/bookings/direct', authenticateToken, async (req, res) => {
   }
 });
 
-// Get available slots - includes all non-cancelled bookings
-app.get('/api/bookings/available-slots', (req, res) => {
+app.get('/api/bookings/available-slots', async (req, res) => {
   const { date } = req.query;
   if (!date) {
     return res.status(400).json({ error: 'Date is required' });
@@ -630,93 +634,90 @@ app.get('/api/bookings/available-slots', (req, res) => {
   const normalizedDate = normalizeDate(date);
   const allSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
   
-  // Get ALL booked slots (including those from packages page)
-  const bookedSlots = database.bookings
-    .filter(b => normalizeDate(b.meetingDate) === normalizedDate && b.status !== 'cancelled')
-    .map(b => b.meetingTime);
+  const bookedSlots = await Booking.find({
+    meetingDate: normalizedDate,
+    status: { $ne: 'cancelled' }
+  }).select('meetingTime');
   
-  const availableSlots = allSlots.filter(slot => !bookedSlots.includes(slot));
+  const bookedTimes = bookedSlots.map(b => b.meetingTime);
+  const availableSlots = allSlots.filter(slot => !bookedTimes.includes(slot));
   
   res.json({ 
     date: normalizedDate, 
     availableSlots, 
-    bookedSlots,
-    totalBookings: bookedSlots.length 
+    bookedSlots: bookedTimes,
+    totalBookings: bookedTimes.length 
   });
 });
 
-// Get user's appointments
-app.get('/api/user/appointments', authenticateToken, (req, res) => {
-  const user = database.users.find(u => u.id === req.userId);
+app.get('/api/user/appointments', authenticateToken, async (req, res) => {
+  const user = await User.findOne({ id: req.userId });
   
-  const userBookings = database.bookings.filter(b => 
-    (b.userId === req.userId || b.email === user?.email) && 
-    b.status !== 'cancelled'
-  );
+  const userBookings = await Booking.find({
+    $or: [
+      { userId: req.userId },
+      { email: user?.email }
+    ],
+    status: { $ne: 'cancelled' }
+  });
   
   res.json({ appointments: userBookings });
 });
 
-// Get all appointments for schedule view (admin)
-app.get('/api/appointments/all', authenticateToken, (req, res) => {
-  const allBookings = database.bookings
-    .filter(b => b.status !== 'cancelled')
-    .sort((a, b) => {
-      const dateA = normalizeDate(a.meetingDate);
-      const dateB = normalizeDate(b.meetingDate);
-      if (dateA === dateB) return a.meetingTime.localeCompare(b.meetingTime);
-      return dateA.localeCompare(dateB);
-    });
+app.get('/api/appointments/all', authenticateToken, async (req, res) => {
+  const allBookings = await Booking.find({ status: { $ne: 'cancelled' } })
+    .sort({ meetingDate: 1, meetingTime: 1 });
   
-  // Enrich with user names
-  const enrichedBookings = allBookings.map(booking => {
-    const user = database.users.find(u => u.id === booking.userId);
+  const enrichedBookings = await Promise.all(allBookings.map(async (booking) => {
+    const user = await User.findOne({ id: booking.userId });
     return {
-      ...booking,
+      ...booking.toObject(),
       userName: user?.name || booking.travelerName || 'Unknown',
       userEmail: user?.email || booking.email
     };
-  });
+  }));
   
   res.json({ appointments: enrichedBookings });
 });
 
-// Get schedule for a specific date with full details
-app.get('/api/schedule/:date', authenticateToken, (req, res) => {
+app.get('/api/schedule/:date', authenticateToken, async (req, res) => {
   const { date } = req.params;
   const normalizedDate = normalizeDate(date);
   
-  const appointments = database.bookings
-    .filter(b => normalizeDate(b.meetingDate) === normalizedDate && b.status !== 'cancelled')
-    .map(booking => {
-      const user = database.users.find(u => u.id === booking.userId);
-      return {
-        id: booking.id,
-        time: booking.meetingTime,
-        userName: user?.name || booking.travelerName,
-        userEmail: user?.email || booking.email,
-        packageName: booking.packageName,
-        status: booking.status,
-        specialRequests: booking.specialRequests || booking.userRequest,
-        source: booking.source
-      };
-    })
-    .sort((a, b) => a.time.localeCompare(b.time));
+  const bookings = await Booking.find({
+    meetingDate: normalizedDate,
+    status: { $ne: 'cancelled' }
+  });
+  
+  const appointments = await Promise.all(bookings.map(async (booking) => {
+    const user = await User.findOne({ id: booking.userId });
+    return {
+      id: booking.id,
+      time: booking.meetingTime,
+      userName: user?.name || booking.travelerName,
+      userEmail: user?.email || booking.email,
+      packageName: booking.packageName,
+      status: booking.status,
+      specialRequests: booking.specialRequests || booking.userRequest,
+      source: booking.source
+    };
+  }));
+  
+  appointments.sort((a, b) => a.time.localeCompare(b.time));
   
   res.json({ 
     date: normalizedDate, 
     appointments,
-    availableSlots: getAvailableSlots(normalizedDate)
+    availableSlots: await getAvailableSlots(normalizedDate)
   });
 });
 
-// Update appointment
-app.put('/api/appointments/:id', authenticateToken, (req, res) => {
+app.put('/api/appointments/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { meetingDate, meetingTime } = req.body;
     
-    const booking = database.bookings.find(b => b.id === id);
+    const booking = await Booking.findOne({ id });
     
     if (!booking) {
       return res.status(404).json({ error: 'Appointment not found' });
@@ -730,24 +731,24 @@ app.put('/api/appointments/:id', authenticateToken, (req, res) => {
     const oldTime = booking.meetingTime;
     const normalizedNewDate = normalizeDate(meetingDate);
     
-    // التحقق من توفر الوقت الجديد
-    const existingSlot = database.bookings.find(b => 
-      normalizeDate(b.meetingDate) === normalizedNewDate && 
-      b.meetingTime === meetingTime && 
-      b.status !== 'cancelled' &&
-      b.id !== id
-    );
+    const existingSlot = await Booking.findOne({
+      meetingDate: normalizedNewDate,
+      meetingTime: meetingTime,
+      status: { $ne: 'cancelled' },
+      id: { $ne: id }
+    });
     
     if (existingSlot) {
       return res.status(409).json({ 
         error: 'Time slot already taken. Please select another time.',
-        availableSlots: getAvailableSlots(normalizedNewDate)
+        availableSlots: await getAvailableSlots(normalizedNewDate)
       });
     }
     
     booking.meetingDate = normalizedNewDate;
     booking.meetingTime = meetingTime;
-    booking.updatedAt = new Date().toISOString();
+    booking.updatedAt = new Date();
+    await booking.save();
     
     res.json({ 
       message: 'Appointment updated successfully!', 
@@ -759,12 +760,11 @@ app.put('/api/appointments/:id', authenticateToken, (req, res) => {
   }
 });
 
-// Cancel appointment
-app.delete('/api/appointments/:id', authenticateToken, (req, res) => {
+app.delete('/api/appointments/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    const booking = database.bookings.find(b => b.id === id);
+    const booking = await Booking.findOne({ id });
     
     if (!booking) {
       return res.status(404).json({ error: 'Appointment not found' });
@@ -777,7 +777,8 @@ app.delete('/api/appointments/:id', authenticateToken, (req, res) => {
     const releasedSlot = { date: booking.meetingDate, time: booking.meetingTime };
     
     booking.status = 'cancelled';
-    booking.cancelledAt = new Date().toISOString();
+    booking.cancelledAt = new Date();
+    await booking.save();
     
     res.json({ 
       message: 'Appointment cancelled successfully!', 
@@ -791,32 +792,41 @@ app.delete('/api/appointments/:id', authenticateToken, (req, res) => {
 });
 
 // Health check
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  const packagesCount = await Package.countDocuments();
+  const usersCount = await User.countDocuments();
+  const bookingsCount = await Booking.countDocuments();
+  const verifiedUsers = await User.countDocuments({ isVerified: true });
+  
   res.json({
     status: 'API running',
-    packages: database.travelPackages.length,
-    users: database.users.length,
-    bookings: database.bookings.length,
-    verifiedUsers: database.users.filter(u => u.isVerified).length
+    packages: packagesCount,
+    users: usersCount,
+    bookings: bookingsCount,
+    verifiedUsers: verifiedUsers,
+    database: 'MongoDB Connected'
   });
 });
 
 // ===== START SERVER =====
 const PORT = process.env.PORT || 5000;
 
-seedTravelPackages();
-
-app.listen(PORT, () => {
-  console.log(`
+const startServer = async () => {
+  await connectDB();
+  await seedTravelPackages();
+  
+  app.listen(PORT, () => {
+    console.log(`
   ╔════════════════════════════════════════════════════════════╗
-  ║   Smart Travel Platform - API Server                       ║
+  ║   Smart Travel Platform - API Server (MongoDB)            ║
   ╚════════════════════════════════════════════════════════════╝
   
   🚀 Server: http://localhost:${PORT}
-  📦 Packages: ${database.travelPackages.length}
-  📅 Bookings: ${database.bookings.length}
-  👥 Users: ${database.users.length}
+  📦 MongoDB: Connected
   `);
-});
+  });
+};
+
+startServer();
 
 module.exports = app;
