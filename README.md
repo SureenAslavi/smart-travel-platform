@@ -101,7 +101,7 @@ EMAIL_USER=your_email@gmail.com
 EMAIL_PASS=your_email_password
 ```
 
-**5. Run the backend**
+**4. Run the backend**
 ```bash
 node server.js
 ```
