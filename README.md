@@ -75,3 +75,33 @@ A complete full-stack web application that provides AI-powered travel package re
 ```bash
 git clone <your-repo-url>
 cd smart-travel-platform
+```
+
+**2. Install backend dependencies**
+```bash
+npm install
+```
+
+**3. Install frontend dependencies and run it**
+```bash
+cd .\smart-travel-frontend\
+npm install
+npm run dev
+```
+
+###⚙️ Environment Variables
+
+Create a .env file in the root directory:
+
+PORT=5000
+JWT_SECRET=your_jwt_secret
+GEMINI_API_KEY=your_gemini_api_key
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_email_password
+
+**5. Run the backend**
+```bash
+node server.js
+```
+طط
+دد
