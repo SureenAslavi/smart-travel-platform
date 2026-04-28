@@ -89,19 +89,20 @@ npm install
 npm run dev
 ```
 
-###⚙️ Environment Variables
+### ⚙️ Environment Variables
 
-Create a .env file in the root directory:
+Create a `.env` file in the root directory and add the following variables:
 
+```env
 PORT=5000
 JWT_SECRET=your_jwt_secret
 GEMINI_API_KEY=your_gemini_api_key
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASS=your_email_password
+```
 
 **5. Run the backend**
 ```bash
 node server.js
 ```
-طط
 دد
