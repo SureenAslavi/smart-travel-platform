@@ -367,7 +367,7 @@ function HomePage({ setCurrentPage, showToast }) {
 const homeStyles = {
   hero: { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderRadius: '24px', padding: '4rem 2rem', textAlign: 'center', color: 'white', marginBottom: '3rem' },
   heroTitle: { fontSize: '3rem', marginBottom: '1rem', fontWeight: '700' },
-  gradientText: { background: 'linear-gradient(135deg, #ffd89b 0%, #19547b 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' },
+  gradientText: { background: 'linear-gradient(135deg, #ffd89b 0%, #8d989f )', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' },
   heroSubtitle: { fontSize: '1.2rem', marginBottom: '2rem', opacity: 0.95 },
   heroButtons: { display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' },
   primaryBtn: { padding: '0.8rem 2rem', fontSize: '1rem', fontWeight: '600', border: 'none', borderRadius: '50px', background: 'white', color: '#667eea', cursor: 'pointer' },
