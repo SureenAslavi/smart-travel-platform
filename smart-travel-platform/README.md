@@ -1,4 +1,4 @@
-[# 🌍 Smart Travel Consultation Platform
+# 🌍 Smart Travel Consultation Platform
 
 A complete full-stack web application that provides AI-powered travel package recommendations with user authentication, package browsing, and consultation management.
 
