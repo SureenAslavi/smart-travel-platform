@@ -1,4 +1,4 @@
-# 🌍 Smart Travel Consultation Platform
+[# 🌍 Smart Travel Consultation Platform
 
 A complete full-stack web application that provides AI-powered travel package recommendations with user authentication, package browsing, and consultation management.
 
@@ -139,43 +139,43 @@ A complete full-stack web application that provides AI-powered travel package re
 
 ### Installation
 
-**1. Clone or download the files**
+**1. Clone the repository**
 ```bash
+git clone https://github.com/SureenAslavi/smart-travel-platform.git
+cd smart-travel-platform
 cd smart-travel-platform
 ```
 
-**2. Start Backend (Terminal 1)**
+**2. Install backend dependencies**
 ```bash
-npm install express cors bcryptjs jsonwebtoken dotenv
+npm install
+```
+
+**3. Install frontend dependencies and run it**
+```bash
+cd .\smart-travel-frontend\
+npm install
+npm run dev
+```
+
+### ⚙️ Environment Variables
+
+Create a `.env` file in the root directory and add the following variables:
+
+```env
+PORT=5000
+JWT_SECRET=your_jwt_secret
+GEMINI_API_KEY=your_gemini_api_key
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_email_password
+```
+
+**4. Run the backend**
+```bash
 node server.js
-# Server running on http://localhost:5000
 ```
 
-**3. Start Frontend (Terminal 2)**
-```bash
-npx create-react-app smart-travel-frontend
-cd smart-travel-frontend
-# Copy App.jsx → src/App.js
-# Copy App.css → src/App.css
-npm start
-# App running on http://localhost:3000
-```
 
-### Verify Installation
-```bash
-# Test API health
-curl http://localhost:5000/api/health
-
-# Expected response:
-# {
-#   "status": "API running",
-#   "packages": 100,
-#   "users": 0,
-#   "timestamp": "..."
-# }
-```
-
----
 
 ## 📖 API Documentation
 
@@ -294,49 +294,6 @@ Output:
 - Confidence: 95%
 ```
 
----
-
-## 📁 Project Structure
-
-```
-smart-travel-platform/
-├── server.js                    # Express backend server
-├── App.jsx                      # React main component
-├── App.css                      # Styling (modern, responsive)
-├── package-backend.json         # Backend dependencies
-├── package-frontend.json        # Frontend dependencies
-├── .env.example                 # Environment template
-├── DOCUMENTATION.md             # Complete API documentation
-├── QUICKSTART.md               # Quick start guide
-└── README.md                   # This file
-```
-
----
-
-## 🎨 UI/UX Design
-
-### Pages
-1. **Home** - Landing page with feature overview
-2. **Browse Packages** - Grid view with filters
-3. **AI Consultation** - Form → Recommendations
-4. **User Profile** - Login/Register
-5. **Saved Requests** - Consultation history
-
-### Design Features
-- Modern gradient color scheme
-- Smooth animations and transitions
-- Card-based layouts
-- Responsive grid system
-- Intuitive navigation
-- Clear visual hierarchy
-
-### Color Palette
-- Primary: Blue (#2563eb)
-- Secondary: Green (#10b981)
-- Accent: Amber (#f59e0b)
-- Danger: Red (#ef4444)
-
----
 
 ## 🔐 Security Features
 
@@ -348,11 +305,8 @@ smart-travel-platform/
 - ✅ Error handling
 
 ### Production Recommendations
-- Use HTTPS/TLS
-- Implement rate limiting
 - Add request validation middleware
 - Store secrets in environment variables
-- Use professional database (MongoDB/PostgreSQL)
 - Add logging and monitoring
 - Enable CSRF protection
 - Implement API key system
@@ -461,15 +415,6 @@ User Preferences → API Call → Apply Filters → Sort Results → Calculate S
 Authenticated User → API Call → Store Request → Link to User → Return Confirmation
 ```
 
----
-
-## 📈 Performance Metrics
-
-- **API Response Time**: <100ms (in-memory)
-- **Frontend Load Time**: <2s
-- **Package Filter**: Real-time (instant)
-- **Recommendation Generation**: <500ms
-- **Database Queries**: Instant (in-memory)
 
 ---
 
@@ -498,109 +443,4 @@ const [currentPage, setCurrentPage] = useState('newpage');
 {currentPage === 'newpage' && <NewPage />}
 ```
 
----
 
-## 📝 License
-
-MIT License - Feel free to use, modify, and distribute.
-
----
-
-## 🤝 Contributing
-
-Contributions welcome! Areas for enhancement:
-- Database integration
-- Payment processing
-- Email notifications
-- Advanced filtering
-- Machine learning recommendations
-- Mobile app
-
----
-
-## 📞 Support
-
-### Documentation
-- **Full API Docs**: See DOCUMENTATION.md
-- **Quick Start**: See QUICKSTART.md
-
-### Common Issues
-- **Port in use**: Change PORT in .env
-- **CORS errors**: Check CORS_ORIGIN in .env
-- **Database errors**: Verify database connection
-- **Authentication failed**: Clear localStorage and re-login
-
----
-
-## 🎓 Learning Resources
-
-This project demonstrates:
-- Full-stack web application architecture
-- RESTful API design
-- JWT authentication
-- React component patterns
-- Responsive web design
-- Database schema design
-- AI/ML recommendation algorithms
-- Error handling and validation
-
----
-
-## 📊 Project Stats
-
-- **Lines of Code**: ~2000
-- **Components**: 7 React components
-- **API Routes**: 9 endpoints
-- **Packages**: 100 travel packages
-- **Users**: Unlimited
-- **Performance**: Production-ready
-
----
-
-## 🎯 Roadmap
-
-### Phase 1 ✅ (Current)
-- Core API and authentication
-- Package browsing and filtering
-- AI recommendation engine
-- User dashboard
-
-### Phase 2 🔄 (Next)
-- Database integration (MongoDB)
-- Payment processing (Stripe)
-- Email notifications
-- Advanced analytics
-
-### Phase 3 🚀 (Future)
-- Mobile app (React Native)
-- Machine learning models
-- Personalization engine
-- Real-time chat support
-
----
-
-## 🌟 Highlights
-
-⭐ **Complete Full-Stack** - Frontend, backend, database all included
-⭐ **Production-Ready** - Secure, scalable, well-documented
-⭐ **AI-Powered** - Smart recommendation algorithm
-⭐ **User-Friendly** - Intuitive interface, responsive design
-⭐ **Well-Documented** - Complete API docs and guides
-⭐ **Easy to Extend** - Clean, modular code structure
-
----
-
-## 👨‍💻 Author
-
-Created as a comprehensive example of a modern full-stack web application.
-
----
-
-**Version**: 1.0.0  
-**Last Updated**: January 2024  
-**Status**: ✅ Production Ready
-
-🚀 **Ready to launch your travel consultation platform!**
-
-For detailed setup instructions, see [QUICKSTART.md](./QUICKSTART.md)  
-For complete API documentation, see [DOCUMENTATION.md](./DOCUMENTATION.md)
