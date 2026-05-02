@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 // ===== API BASE URL =====
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://smart-travel-platform.onrender.com/api';
 
 // ===== TOAST NOTIFICATION COMPONENT =====
 function Toast({ message, type, onClose }) {
