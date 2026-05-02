@@ -251,20 +251,4 @@ http://localhost:5000/api
 - Input validation
 - Error handling
 
----
 
-## ⚠️ Notes
-
-- Database is in-memory (resets on server restart)
-- Gmail requires App Password
-- Ready to upgrade to MongoDB
-
----
-
-## 📌 Future Improvements
-
-- MongoDB integration
-- Payment system
-- Admin dashboard
-- Notifications system
-- Multi-language support
