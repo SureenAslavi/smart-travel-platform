@@ -73,7 +73,8 @@ A complete full-stack web application that provides AI-powered travel package re
 
 **1. Clone the repository**
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/SureenAslavi/smart-travel-platform.git
+cd smart-travel-platform
 cd smart-travel-platform
 ```
 
