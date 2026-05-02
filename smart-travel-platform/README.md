@@ -416,31 +416,3 @@ Authenticated User → API Call → Store Request → Link to User → Return Co
 ```
 
 
----
-
-## 🛠️ Development
-
-### Adding New Features
-
-**New Package Type**
-```javascript
-// In server.js - update seedTravelPackages()
-type: "wellness"  // Add to type option
-```
-
-**New Filter**
-```javascript
-// In server.js - update GET /packages route
-if (region) {
-  filtered = filtered.filter(p => p.region === region);
-}
-```
-
-**New Page**
-```javascript
-// In App.jsx
-const [currentPage, setCurrentPage] = useState('newpage');
-{currentPage === 'newpage' && <NewPage />}
-```
-
-
