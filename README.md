@@ -84,7 +84,9 @@ A complete full-stack web application that provides AI-powered travel package re
 
 ## 📊 Database Schema
 
-### Users
+The system uses an in-memory database with the following collections:
+
+### 1. Users
 ```javascript
 {
   id: String,
@@ -96,7 +98,7 @@ A complete full-stack web application that provides AI-powered travel package re
 }
 ```
 
-### Travel Packages
+### 2. Travel Packages
 ```javascript
 {
   id: Number,
@@ -110,7 +112,20 @@ A complete full-stack web application that provides AI-powered travel package re
 }
 ```
 
-### Bookings
+### 3. Consultation Requests
+```javascript
+{
+  id: String,
+  userId: String,
+  budget: String,
+  travelType: String,
+  duration: String,
+  travelers: String,
+  timestamp: String
+}
+```
+
+### 4. Bookings
 ```javascript
 {
   id: String,
@@ -122,6 +137,26 @@ A complete full-stack web application that provides AI-powered travel package re
   packageName: String,
   travelers: Number,
   status: String
+}
+```
+
+### 5. Email Verifications
+```javascript
+{
+  userId: String,
+  code: String,
+  expiresAt: Date
+}
+```
+
+### 6. Saved Recommendations
+```javascript
+{
+  id: String,
+  userId: String,
+  packageId: Number,
+  recommendationData: String,
+  savedAt: String
 }
 ```
 
