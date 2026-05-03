@@ -79,13 +79,13 @@ function getAvailableSlots(date) {
 }
 
 // ===== EMAIL SETUP =====
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587, 
-  secure: false, 
+
+const transport = nodemailer.createTransport({
+  host: "sandbox.smtp.mailtrap.io",
+  port: 2525,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+    user: "8e41599c8d03b3",
+    pass: "a083027aaf286c"
   }
 });
 
