@@ -6,10 +6,13 @@ const dotenv = require('dotenv');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { Resend } = require('resend');
 
 dotenv.config();
 
 const app = express();
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ===== MIDDLEWARE =====
 app.use(cors({
@@ -161,7 +164,7 @@ const authenticateToken = (req, res, next) => {
 // ===== EMAIL FUNCTIONS =====
 async function sendVerificationEmail(email, verificationCode, name) {
   const mailOptions = {
-    from: `"Smart Travel" <${process.env.EMAIL_USER}>`,
+    from: 'onboarding@resend.dev',
     to: email,
     subject: 'Verify Your Email - Smart Travel',
     html: `
